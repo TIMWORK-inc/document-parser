@@ -1,0 +1,2 @@
+1. 각 모듈의 호출 output: List[Dict]: {"text", "bbox", "confidence", "engine", "hierarchy"} 구조의 리스트
+2. 앙상블 후 output: List[Dict]: {"text": chosen_text, "confidence": avg_conf} 구조의 리스트
