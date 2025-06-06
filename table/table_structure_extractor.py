@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import pandas as pd
 from bs4 import BeautifulSoup as bs
+import json
 
 import pytesseract
 
@@ -108,18 +109,25 @@ class TableStructureExtractor:
         self.model.load_state_dict(torch.load(model_weights, map_location="cpu"))
         self.model = self.model.to(device)
 
-    def extract(self, image_path: str, ocr_data: Optional[List[Dict[str, Any]]], save_path: str = "./result.html", max_decode_len: int = 512) -> str:
-        """
-        이미지를 입력받아 HTML 형식의 테이블 구조를 추출합니다.
+    def extract(
+        self,
+        image_path: str,
+        ocr_data: Optional[List[Dict[str, Any]]],
+        save_path: str = "./result.html",
+        max_decode_len: int = 512,
+        output_format: str = "html",
+    ) -> Union[str, Dict[str, Any]]:
+        """이미지에서 테이블 구조를 추출합니다.
 
         Args:
             image_path (str): 테이블이 포함된 입력 이미지 파일 경로
             ocr_data (List[dict] | None): OCR 결과 데이터(텍스트와 바운딩 박스 목록). None인 경우 placeholder를 사용
-            save_path (str): 결과 HTML 파일을 저장할 경로
+            save_path (str): 결과 파일을 저장할 경로
             max_decode_len (int): 디코딩을 수행할 최대 토큰 수
+            output_format (str): "html" 또는 "json" 중 선택
 
         Returns:
-            str: 정돈된(prettified) HTML 코드 문자열
+            Union[str, dict]: HTML 문자열 또는 JSON 객체
         """
         image = Image.open(image_path).convert("RGB")
 
@@ -183,9 +191,41 @@ class TableStructureExtractor:
 
         soup = bs(html_code_str)
         table_code = soup.prettify()
-        with open(save_path, 'w') as f:
-            f.write(table_code)
-        return table_code
+
+        if output_format == "json":
+            table_json = self._html_to_json(table_code)
+            with open(save_path, "w") as f:
+                json.dump(table_json, f, ensure_ascii=False, indent=2)
+            return table_json
+        else:
+            with open(save_path, "w") as f:
+                f.write(table_code)
+            return table_code
+
+    def _html_to_json(self, html: str) -> Dict[str, Any]:
+        """Convert HTML table code to a simple Textract-like JSON."""
+        soup = bs(html, "html.parser")
+        table = soup.find("table")
+        cells = []
+        row_idx = 1
+        for tr in table.find_all("tr"):
+            col_idx = 1
+            for td in tr.find_all("td"):
+                row_span = int(td.get("rowspan", 1))
+                col_span = int(td.get("colspan", 1))
+                text = td.get_text(strip=True)
+                cells.append(
+                    {
+                        "RowIndex": row_idx,
+                        "ColumnIndex": col_idx,
+                        "RowSpan": row_span,
+                        "ColumnSpan": col_span,
+                        "Text": text,
+                    }
+                )
+                col_idx += col_span
+            row_idx += 1
+        return {"Cells": cells}
 
 
 def generate_ocr_data(image_path: str) -> List[Dict[str, Any]]:
@@ -226,7 +266,15 @@ if __name__ == "__main__":
 
     ocr_data = generate_ocr_data(image_path)
 
-    pred_html = extractor.extract(image_path, ocr_data, save_path="./result_with_ocr.html")
-    pred_html = extractor.extract(image_path, None, save_path="./result_without_ocr.html")
+    pred_html = extractor.extract(
+        image_path, ocr_data, save_path="./result_with_ocr.html", output_format="html"
+    )
+    pred_json = extractor.extract(
+        image_path, ocr_data, save_path="./result.json", output_format="json"
+    )
+
+    pred_html = extractor.extract(
+        image_path, None, save_path="./result_without_ocr.html", output_format="html"
+    )
 
     print("Extraction complete. HTML saved.")
