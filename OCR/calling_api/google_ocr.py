@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 import os
 import re
 
+# # .env 파일의 절대 경로 구성
+# base_dir = os.path.dirname(os.path.abspath(__file__))
+# env_path = os.path.join(base_dir, '.env')
+
 class GoogleOCR:
     """
     Google Cloud Vision API를 사용한 OCR 클래스.
