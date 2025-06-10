@@ -4,202 +4,172 @@ from calling_api.google_ocr import GoogleOCR
 from calling_api.doctr_ocr import DocTROCR
 
 from collections import defaultdict, Counter
-from PIL import Image
-import tempfile, os
-import matplotlib.pyplot as plt
-
-'''
-log
-
-1. metadata 완성
-
-2. call 메서드 완성
-
-3. cropped_img에 대해 각 모듈이 여러 개의 단어로 인식하거나 아무 단어도 인식 못할 때 <- 완료
--> 여러 단어일 땐 join
--> 아무 단어도 인식 못할 땐 무투표 처리
-
-4. 왜 Ensembled된 결과로 공백이 나오지? -> 어떤 모듈도 단어를 인식 못함
--> base_ocr이 만든 text_box가 너무 작아서 생긴 문제 -> 고정 픽셀 패딩 적용 
-
-고정 픽셀 패딩은 없애는게 낫다. 옆 글자까지 애매하게 잘리는 경우가 많아서
-따라서 너무 작은 박스에 대해선 옆 박스랑 더하는게 나은듯
-
-
-
-5. to do ->
-
-* 문제 상황 발생_2
-: 자른 이미지에 대해 sequential하게 매번 ocr 모듈을 호출하므로 너무 느리다.
-모듈을 호출할 때 오버헤드가 상당히 큰 것 같다.
-게다가 만약, google_ocr과 같이 유료 모듈을 사용한다면, 사용 요금이 너무 많아진다.
-
-* 해결책
-1. 자른 이미지에 대해 ocr 모듈을 여러 쓰레드로 병렬 처리한다.
-- 그러나, 여전히 유료 ocr을 사용할 때 요금이 너무 많이 발생하는 문제를 해결하지 못한다.
-
-2. 유료 API는 일부 샘플에만 적용
-- low confidence 혹은 투표가 많이 갈리는 항목만 유료 OCR 재처리
-
-
-'''
-
+import json, os
+from ensemble_boxes import weighted_boxes_fusion
 
 class OCR:
-    def __init__(self, img_path, base_ocr, ocrs):
-        """초기화 함수
+    def __init__(self, img_path, ocrs):
+        """
+        OCR 클래스 초기화.
 
         Args:
-            img_path (str): 입력 이미지 경로
-            base_ocr (object): 기준 OCR 엔진 인스턴스
-            ocrs (List[object]): OCR 엔진 인스턴스 리스트
+            img_path (str): OCR을 수행할 이미지 경로.
+            ocrs (List[object]): OCR 엔진 인스턴스 리스트.
         """
         self.img_path = img_path
-        self.base_ocr = base_ocr
         self.ocrs = ocrs
 
-    def img_to_metadata(self):
-        """기준 OCR에서 단어 단위 bbox 추출 후 정렬 및 인덱스 부여
+    def calling_apis(self):
+        """
+        [OCR_001] 전체 이미지 OCR 처리
 
         Returns:
-            List[Dict[str, Any]]: index와 bbox를 포함한 메타데이터 리스트
+            Dict[str, List[Dict[str, Any]]]: 각 OCR 엔진 이름별로 OCR 결과를 리스트 형태로 반환.
         """
-        results = self.base_ocr()
-        texts = [item["text"] for item in results]
-        print("base_ocr_result: ", texts)
-
-        def get_center(bbox):
-            x1, y1, x2, y2 = bbox
-            return (round((y1 + y2) / 2, 1), round((x1 + x2) / 2, 1))
-
-        results_sorted = sorted(results, key=lambda item: get_center(item['bbox']))
-        metadata = [{"index": i, "bbox": item['bbox']} for i, item in enumerate(results_sorted)]
-        return metadata
-
-    @staticmethod
-    def pad_bbox(bbox, pad=5):
-        """고정된 픽셀 수만큼 bbox에 padding을 적용
-
-        Args:
-            bbox (List[int]): [x1, y1, x2, y2] 형태의 바운딩 박스
-            pad (int, optional): padding 크기. Defaults to 5.
-
-        Returns:
-            List[int]: padding이 적용된 bbox
-        """
-        x1, y1, x2, y2 = bbox
-        return [x1 - pad, y1 - pad, x2 + pad, y2 + pad]
-
-    def calling_apis(self, cropped_img):
-        """여러 OCR 엔진을 호출하여 결과 수집
-
-        Args:
-            cropped_img (str): 잘린 이미지 파일 경로
-
-        Returns:
-            List[List[Dict[str, Any]]]: 각 OCR 결과 리스트
-        """
-        results = []
+        results_by_engine = {}
         for ocr_engine in self.ocrs:
             try:
-                ocr_engine.img = cropped_img
+                ocr_engine.img = self.img_path
                 result = ocr_engine()
-                results.append(result)
+                results_by_engine[ocr_engine.__class__.__name__] = result
             except Exception as e:
-                print(f"failed: {e}")
-                results.append([])
-        return results
+                print(f"Failed {ocr_engine.__class__.__name__}: {e}")
+                results_by_engine[ocr_engine.__class__.__name__] = []
+        return results_by_engine
 
-    @staticmethod
-    def ensemble(results):
-        """OCR 결과 앙상블 (다수결 + confidence 평균)
+    def apply_wbf(self, results_by_engine):
+        """
+        [OCR_002] Weighted Boxes Fusion을 이용한 bbox 병합
 
         Args:
-            results (List[List[Dict[str, Any]]]): 각 OCR 결과 리스트
+            results_by_engine (Dict[str, List[Dict[str, Any]]]): 각 OCR 엔진의 결과.
 
         Returns:
-            List[Dict[str, Union[str, float]]]: 앙상블된 최종 결과
+            List[Dict[str, Union[List[int], float]]]: 병합된 bbox와 평균 confidence 리스트.
         """
-        def join_result(words):
-            if not words:
-                return "", 0.0
-            texts = [w["text"].strip() for w in words if w.get("text")]
-            confs = [w["confidence"] for w in words if "confidence" in w]
-            return " ".join(texts), sum(confs) / len(confs) if confs else 0.0
+        boxes, scores, labels = [], [], []
 
-        texts, confs = [], []
-        for result in results:
-            text, conf = join_result(result)
-            texts.append(text)
-            confs.append(conf)
+        for engine, result in results_by_engine.items():
+            b, s, l = [], [], []
+            for r in result:
+                x1, y1, x2, y2 = r["bbox"]
+                b.append([x1 / 1000, y1 / 1000, x2 / 1000, y2 / 1000]) # bbox를 0~1 사이 값으로 정규화 (WBF는 정규화된 좌표를 요구함)
+                s.append(r.get("confidence", 1.0))  # confidence 점수를
+                l.append(0)   # class label (dummy)
+            boxes.append(b)
+            scores.append(s)
+            labels.append(l)
 
-        votes = defaultdict(list)
-        for text, conf in zip(texts, confs):
-            if text.strip():
-                votes[text].append(conf)
+        if not any(boxes):
+            return []
 
-        if not votes:
-            return [{"text": "", "confidence": 0.0}]
+        merged_boxes, merged_scores, _ = weighted_boxes_fusion(boxes, scores, labels, iou_thr=0.5)
+        # iou_thr=0.5: IoU가 50% 이상이면 같은 그룹으로 간주
+        
+        merged_results = [] # 병합된 박스를 다시 복원
+        for box, score in zip(merged_boxes, merged_scores):
+            x1, y1, x2, y2 = [int(c * 1000) for c in box]
+            merged_results.append({"bbox": [x1, y1, x2, y2], "confidence": score})
 
-        vote_counts = Counter({t: len(c) for t, c in votes.items()})
-        most_common = vote_counts.most_common()
+        return merged_results
 
-        if len(most_common) == 1 or most_common[0][1] > most_common[1][1]:
-            chosen_text = most_common[0][0]
+    def ensemble_text(self, merged_bboxes, results_by_engine):
+        """
+        [OCR_003] 텍스트 다수결 앙상블 수행
+
+        Args:
+            merged_bboxes (List[Dict]): 병합된 bbox 리스트.
+            results_by_engine (Dict[str, List[Dict]]): 각 엔진별 원시 OCR 결과.
+
+        Returns:
+            List[Dict[str, Union[str, float, List[int]]]]: 최종 텍스트와 confidence 결과.
+        """
+        def iou(b1, b2):
+            xa, ya, xb, yb = max(b1[0], b2[0]), max(b1[1], b2[1]), min(b1[2], b2[2]), min(b1[3], b2[3])
+            inter = max(0, xb - xa) * max(0, yb - ya)
+            area1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+            area2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+            union = area1 + area2 - inter
+            return inter / union if union > 0 else 0
+
+        final_results = []
+        for box in merged_bboxes:
+            texts = defaultdict(list)
+            for engine_results in results_by_engine.values():
+                for r in engine_results:
+                    if iou(r["bbox"], box["bbox"]) > 0.5:
+                        text = r["text"].strip()
+                        if text:
+                            texts[text].append(r.get("confidence", 1.0))
+
+            if not texts:
+                final_results.append({"bbox": box["bbox"], "text": "", "confidence": 0.0})
+                continue
+
+            vote_counts = Counter({t: len(c) for t, c in texts.items()})
+            most_common = vote_counts.most_common()
+            if len(most_common) == 1 or most_common[0][1] > most_common[1][1]:
+                chosen_text = most_common[0][0]
+            else:
+                tied = [t for t, cnt in most_common if cnt == most_common[0][1]]
+                chosen_text = max(tied, key=lambda t: sum(texts[t]) / len(texts[t]))
+
+            avg_conf = sum(texts[chosen_text]) / len(texts[chosen_text])
+            final_results.append({"bbox": box["bbox"], "text": chosen_text, "confidence": avg_conf})
+
+        return final_results
+
+    def save_or_return_results(self, results, save=False, path="ocr_results.json"):
+        """
+        [OCR_004] 결과를 JSON 파일로 저장하거나 콘솔에 출력함.
+
+        Args:
+            results (List[Dict]): OCR 결과 리스트.
+            save (bool): True일 경우 파일 저장, False면 콘솔 출력. Defaults to False.
+            path (str): 저장 경로. Defaults to 'ocr_results.json'.
+        """
+        if save:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(results, f, indent=2, ensure_ascii=False)
         else:
-            tied = [t for t, cnt in most_common if cnt == most_common[0][1]]
-            chosen_text = max(tied, key=lambda t: sum(votes[t]) / len(votes[t]))
-
-        avg_conf = sum(votes[chosen_text]) / len(votes[chosen_text])
-        return [{"text": chosen_text, "confidence": avg_conf}]
+            for r in results:
+                print(r)
 
     def __call__(self):
-        """OCR 처리 파이프라인 실행
-
-        이미지에서 텍스트 박스를 추출하고 각 박스에 대해 여러 OCR을 적용 후 결과 앙상블 수행
         """
-        def save_temp_image(pil_img):
-            """PIL 이미지를 임시 파일로 저장하고 경로 반환
+        OCR 파이프라인 실행 메서드.
 
-            Args:
-                pil_img (PIL.Image): 이미지 객체
+        수행 단계:
+            1. 전체 이미지에 대해 OCR 호출
+            2. WBF 병합
+            3. 텍스트 앙상블
+            4. 결과 출력 또는 저장
+        """
+        print("▶ 단계 1: OCR 엔진 호출")
+        raw_results = self.calling_apis()
 
-            Returns:
-                str: 임시 저장 경로
-            """
-            temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            pil_img.save(temp_file.name)
-            return temp_file.name
+        print("▶ 단계 2: WBF로 BBox 병합")
+        merged_bboxes = self.apply_wbf(raw_results)
 
-        metadata = self.img_to_metadata()
-        img = Image.open(self.img_path)
+        print("▶ 단계 3: 텍스트 앙상블")
+        final_results = self.ensemble_text(merged_bboxes, raw_results)
 
-        for item in metadata:
-            padded_bbox = self.pad_bbox(item["bbox"], 0)
-            cropped_img = img.crop(padded_bbox)
-            
-            # 이미지 잘 잘리는가 확인
-            script_dir = os.path.dirname(os.path.abspath(__file__))  # 항상 파일 기준
-            output_dir = os.path.join(script_dir, "test_imgs")
-            cropped_img.save(os.path.join(output_dir, f"{item['index']}.png"))
-
-            
-            temp_path = save_temp_image(cropped_img)
-
-            try:
-                results = self.calling_apis(temp_path)
-                r_ensembled = self.ensemble(results)
-                print(f"index: {item['index']}, result: {r_ensembled}")
-            finally:
-                os.remove(temp_path)
+        print("▶ 단계 4: 결과 출력")
+        self.save_or_return_results(final_results, save=False)
 
 def main():
-    """OCR 실행 예제"""
-    path = "./docs/dummy_1.png"
-    base_ocr = EasyOCR(path)
+    """
+    OCR 파이프라인 예제 실행 함수.
+    """
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    path = "../sample_docs/dummy_1.png"
+    path = os.path.join(current_dir, path)
+    
     ocrs = [EasyOCR, PaddleOCRWrapper, DocTROCR]
-    ocr = OCR(path, base_ocr=base_ocr, ocrs=[ocr(path) for ocr in ocrs])
-    ocr()
+    ocr_instances = [ocr(path) for ocr in ocrs]
+    pipeline = OCR(path, ocr_instances)
+    pipeline()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
