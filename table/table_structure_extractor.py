@@ -33,17 +33,10 @@ from src.utils import (
 )
 from src.trainer.utils import VALID_HTML_TOKEN, VALID_BBOX_TOKEN, INVALID_CELL_TOKEN
 
+import yaml
+
 warnings.filterwarnings('ignore')
 device = torch.device("cuda:0")
-
-MODEL_FILE_NAME = [
-    "unitable_large_structure.pt",  # Structure model weights
-    "unitable_large_bbox.pt",       # Bounding box model weights
-    "unitable_large_content.pt",    # Content model weights
-]
-MODEL_DIR = Path("./experiments/unitable_weights")
-assert all([(MODEL_DIR / name).is_file() for name in MODEL_FILE_NAME]), \
-    "Please download model weights from HuggingFace: https://huggingface.co/poloclub/UniTable/tree/main"
 
 
 class TableStructureExtractor:
@@ -51,19 +44,27 @@ class TableStructureExtractor:
     Extracts table structure from an image using a pretrained UniTable model.
     """
 
-    def __init__(self, vocab_path: str = "./vocab/vocab_html.json", max_seq_len: int = 784, model_weights: Union[str, Path] = MODEL_DIR / MODEL_FILE_NAME[0]) -> None:
+    def __init__(self, model_cfg: Dict) -> None:
         """
         TableStructureExtractor를 초기화합니다.
 
         Args:
-            vocab_path (str): HTML 어휘가 저장된 JSON 파일의 경로
-            max_seq_len (int): 디코딩할 최대 시퀀스 길이
-            model_weights (str | Path): 사전 학습된 모델 가중치 파일의 경로
+            model_cfg (Dict): 모델의 변수가 저장된 딕셔너리(from config_table_extractor.yml/model)
         """
-        d_model = 768
-        patch_size = 16
-        nhead = 12
-        dropout = 0.2
+        vocab_path = model_cfg["vocab_path"]
+
+        model_dir = Path(model_cfg["model_dir"])
+        model_weights = model_dir / model_cfg["model_files"]["structure"]
+
+        assert model_weights.is_file(), \
+            "Please download model weights from HuggingFace: https://huggingface.co/poloclub/UniTable/tree/main"
+
+        d_model = model_cfg["d_model"]
+        patch_size = model_cfg["patch_size"]
+        nhead = model_cfg["nhead"]
+        dropout = model_cfg["dropout"]
+
+        max_seq_len = model_cfg["max_seq_len"]
 
         # 모델 구성 요소 초기화
         self.backbone = ImgLinearBackbone(d_model=d_model, patch_size=patch_size)
@@ -113,18 +114,18 @@ class TableStructureExtractor:
         self,
         image_path: str,
         ocr_data: Optional[List[Dict[str, Any]]],
-        save_path: str = "./result.html",
-        max_decode_len: int = 512,
-        output_format: str = "html",
-    ) -> Union[str, Dict[str, Any]]:
+        save_path: str,
+        output_format: str,
+        max_decode_len: int = 528,
+    ) -> str:
         """이미지에서 테이블 구조를 추출합니다.
 
         Args:
             image_path (str): 테이블이 포함된 입력 이미지 파일 경로
-            ocr_data (List[dict] | None): OCR 결과 데이터(텍스트와 바운딩 박스 목록). None인 경우 placeholder를 사용
+            ocr_data (List[dict] | None): OCR 결과 데이터(텍스트와 바운딩 박스 목록). None인 경우 placeholder(text로 표기)를 사용
             save_path (str): 결과 파일을 저장할 경로
-            max_decode_len (int): 디코딩을 수행할 최대 토큰 수
             output_format (str): "html" 또는 "json" 중 선택
+            max_decode_len (int): 디코딩을 수행할 최대 토큰 수
 
         Returns:
             Union[str, dict]: HTML 문자열 또는 JSON 객체
@@ -174,7 +175,7 @@ class TableStructureExtractor:
 
         html_code = []
         if ocr_data is None:
-            ocr_data = [{'text': "placeholder"}] * len(pred_html_tokens)
+            ocr_data = [{'text': "text"}] * len(pred_html_tokens)
 
         # OCR 데이터를 이용해 <td> 태그를 실제 텍스트로 교체
         for tag in pred_html_tokens:
@@ -187,25 +188,56 @@ class TableStructureExtractor:
             else:
                 html_code.append(tag)
         html_code_str = "".join(html_code)
-        html_code_str = html_table_template(html_code_str)
+        table_html = html_table_template(html_code_str)
 
-        soup = bs(html_code_str)
-        table_code = soup.prettify()
+        result = None
 
-        if output_format == "json":
-            table_json = self._html_to_json(table_code)
-            with open(save_path, "w") as f:
-                json.dump(table_json, f, ensure_ascii=False, indent=2)
-            return table_json
+        if output_format == "html":
+            result = table_html
+        elif output_format == "json":
+            table_json = self._html_to_json(table_html)
+            result = json.dumps(table_json)
         else:
+            assert True, "output_format must be html or json!"
+
+        if save_path:
             with open(save_path, "w") as f:
-                f.write(table_code)
-            return table_code
+                f.write(result)
+
+            print(f"Save complete. [{image_path}] -> [{save_path}]")
+        else:
+            print(f"Extraction complete. [{image_path}]")
+
+        return result
+            
 
     def _html_to_json(self, html: str) -> Dict[str, Any]:
-        """Convert HTML table code to a simple Textract-like JSON."""
+        """HTML 테이블 코드를 간단한 Textract 유사 JSON으로 변환합니다.
+
+        이 메서드는 주어진 HTML 문자열을 파싱하여 첫 번째 <table> 요소를 찾고,
+        각 셀의 행/열 인덱스, span 정보, 텍스트 내용을 추출하여 AWS Textract와 유사한
+        형식의 딕셔너리 리스트로 반환합니다.
+
+        Args:
+            html (str): 하나 이상의 <table> 요소를 포함하는 HTML 문자열.
+
+        Returns:
+            Dict[str, Any]: 키 "Cells"를 가지는 딕셔너리. 값은 각 테이블 셀을 나타내는 딕셔너리의 리스트이며,
+                각 셀 딕셔너리는 다음 키를 포함합니다:
+                - "RowIndex" (int): 1부터 시작하는 셀의 행 인덱스.
+                - "ColumnIndex" (int): 1부터 시작하는 셀의 열 인덱스(ColSpan을 반영).
+                - "RowSpan" (int): 셀이 차지하는 행 수.
+                - "ColumnSpan" (int): 셀이 차지하는 열 수.
+                - "Text" (str): 셀 내부의 텍스트 내용(양쪽 공백 제거).
+
+        Raises:
+            ValueError: 제공된 HTML에 <table> 요소가 없을 경우 발생합니다.
+        """
+
         soup = bs(html, "html.parser")
         table = soup.find("table")
+        if table is None:
+            raise ValueError("제공된 HTML에 <table> 요소가 없습니다.")
         cells = []
         row_idx = 1
         for tr in table.find_all("tr"):
@@ -226,7 +258,7 @@ class TableStructureExtractor:
                 col_idx += col_span
             row_idx += 1
         return {"Cells": cells}
-
+    
 
 def generate_ocr_data(image_path: str) -> List[Dict[str, Any]]:
     """
@@ -260,21 +292,22 @@ def generate_ocr_data(image_path: str) -> List[Dict[str, Any]]:
     return ocr_data
 
 if __name__ == "__main__":
-    image_path = "sample_data/PMC2838834_005_00.png"
+    config_path = Path("config_table_extractor.yml")
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
 
-    extractor = TableStructureExtractor()
+    image_path = "sample_data/0.png"
+
+    extractor = TableStructureExtractor(cfg["model"])
 
     ocr_data = generate_ocr_data(image_path)
 
-    pred_html = extractor.extract(
-        image_path, ocr_data, save_path="./result_with_ocr.html", output_format="html"
-    )
     pred_json = extractor.extract(
-        image_path, ocr_data, save_path="./result.json", output_format="json"
+        image_path, None, save_path="./result/without_ocr.json", output_format="json"
     )
 
     pred_html = extractor.extract(
-        image_path, None, save_path="./result_without_ocr.html", output_format="html"
+        image_path, None, save_path=None, output_format="html"
     )
 
-    print("Extraction complete. HTML saved.")
+    print(pred_html)
