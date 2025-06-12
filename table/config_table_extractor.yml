@@ -1,0 +1,19 @@
+model:
+  # Vocabulary 경로: HTML 토큰화에 사용
+  vocab_path: "./vocab/vocab_html.json"
+
+  # 모델 가중치들이 저장된 디렉토리
+  model_dir: "./experiments/unitable_weights"
+
+  # 가중치 파일명
+  model_files:
+    structure: "unitable_large_structure.pt"
+
+  # 모델 아키텍처 하이퍼파라미터
+  d_model: 768
+  patch_size: 16
+  nhead: 12
+  dropout: 0.2
+
+  # 최대 시퀀스 길이
+  max_seq_len: 784
