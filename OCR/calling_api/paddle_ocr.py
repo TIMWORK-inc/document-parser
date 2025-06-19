@@ -90,17 +90,3 @@ class PaddleOCRWrapper:
         output = self.post_processing(raw)
         return output
 
-
-# ✅ 메인 함수에서 테스트
-if __name__ == "__main__":
-    image_path = "./docs/dummy_1.png"  # 테스트할 이미지 경로
-    ocr = PaddleOCRWrapper(image_path)
-    results = ocr()
-
-    print("=== OCR 결과 ===")
-    for item in results:
-        print(f"[Text]: {item['text']}")
-        print(f" BBox : {item['bbox']}")
-        print(f" Conf : {item['confidence']:.2f}")
-        print(f" Hier : {item['hierarchy']:.2f}")
-        print()

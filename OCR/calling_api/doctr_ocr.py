@@ -105,18 +105,3 @@ class DocTROCR:
         raw = self.processing()
         return self.post_processing(raw)
 
-
-# ✅ 테스트용 메인 함수
-if __name__ == "__main__":
-    image_path = "./docs/dummy_1.png"  # 테스트할 이미지 경로
-    ocr = DocTROCR(image_path)
-    results = ocr()
-
-    print("=== OCR 결과 ===")
-    print("=== OCR 결과 ===")
-    for item in results:
-        print(f"[Text]: {item['text']}")
-        print(f" BBox : {item['bbox']}")
-        print(f" Conf : {item['confidence']:.2f}")
-        print(f"Hierarchy : {item['hierarchy']}")
-        print()

@@ -1,13 +1,8 @@
 import requests
 import base64
 import json
-from dotenv import load_dotenv
-import os
-import re
 
-# # .env 파일의 절대 경로 구성
-# base_dir = os.path.dirname(os.path.abspath(__file__))
-# env_path = os.path.join(base_dir, '.env')
+
 
 class GoogleOCR:
     """
@@ -17,7 +12,7 @@ class GoogleOCR:
     통일된 포맷으로 반환한다.
     """
 
-    def __init__(self, img):
+    def __init__(self, img, api_key):
         """
         GoogleOCR 객체 초기화
 
@@ -25,6 +20,7 @@ class GoogleOCR:
             img (str): 이미지 파일 경로
         """
         self.img = img
+        self.api_key = api_key
 
     def processing(self):
         """
@@ -33,15 +29,13 @@ class GoogleOCR:
         Returns:
             dict: Vision API 원시 응답
         """
-        load_dotenv()
-        API_KEY = os.getenv("GOOGLE_API_KEY")
-        if not API_KEY:
-            raise ValueError("Google API Key가 .env에 설정되어 있지 않습니다.")
+        if not self.api_key:
+            raise ValueError("Google API Key 없습니다.")
 
         with open(self.img, 'rb') as f:
             encoded_image = base64.b64encode(f.read()).decode()
 
-        url = f"https://vision.googleapis.com/v1/images:annotate?key={API_KEY}"
+        url = f"https://vision.googleapis.com/v1/images:annotate?key={self.api_key}"
         headers = {"Content-Type": "application/json"}
         body = {
             "requests": [
@@ -130,25 +124,3 @@ class GoogleOCR:
         """
         raw = self.processing()
         return self.post_processing(raw)
-
-
-def main():
-    image_path = "./docs/dummy_1.png"
-    ocr = GoogleOCR(image_path)
-    try:
-        results = ocr()
-    except Exception as e:
-        print(f"[오류 발생] {e}")
-        return
-
-    print("=== GoogleOCR 결과 ===")
-    for item in results:
-        print(f"Text      : {item['text']}")
-        print(f"BBox      : {item['bbox']}")
-        print(f"Confidence: {item['confidence']:.2f}")
-        print(f"Engine    : {item['engine']}")
-        print(f"Hierarchy : {item['hierarchy']}")
-        print("---")
-
-if __name__ == "__main__":
-    main()

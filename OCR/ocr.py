@@ -1,23 +1,30 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rxconfig import GOOGLE_OCR_API_KEY
+
 from calling_api.easy_ocr import EasyOCR
 from calling_api.paddle_ocr import PaddleOCRWrapper
 from calling_api.google_ocr import GoogleOCR
 from calling_api.doctr_ocr import DocTROCR
 
 from collections import defaultdict, Counter
-import json, os
+import json, os, argparse
 from ensemble_boxes import weighted_boxes_fusion
 
 class OCR:
-    def __init__(self, img_path, ocrs):
+    def __init__(self, img_path, ocrs, ensemble = True):
         """
         OCR 클래스 초기화.
 
         Args:
             img_path (str): OCR을 수행할 이미지 경로.
             ocrs (List[object]): OCR 엔진 인스턴스 리스트.
+            ensemble (bool): 앙상블 여부.
         """
         self.img_path = img_path
         self.ocrs = ocrs
+        self.ensemble = ensemble
 
     def calling_apis(self):
         """
@@ -54,7 +61,7 @@ class OCR:
             for r in result:
                 x1, y1, x2, y2 = r["bbox"]
                 b.append([x1 / 1000, y1 / 1000, x2 / 1000, y2 / 1000]) # bbox를 0~1 사이 값으로 정규화 (WBF는 정규화된 좌표를 요구함)
-                s.append(r.get("confidence", 1.0))  # confidence 점수를
+                s.append(r.get("confidence", 1.0))  # confidence 점수
                 l.append(0)   # class label (dummy)
             boxes.append(b)
             scores.append(s)
@@ -119,21 +126,6 @@ class OCR:
 
         return final_results
 
-    def save_or_return_results(self, results, save=False, path="ocr_results.json"):
-        """
-        [OCR_004] 결과를 JSON 파일로 저장하거나 콘솔에 출력함.
-
-        Args:
-            results (List[Dict]): OCR 결과 리스트.
-            save (bool): True일 경우 파일 저장, False면 콘솔 출력. Defaults to False.
-            path (str): 저장 경로. Defaults to 'ocr_results.json'.
-        """
-        if save:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-        else:
-            for r in results:
-                print(r)
 
     def __call__(self):
         """
@@ -147,28 +139,43 @@ class OCR:
         """
         print("▶ 단계 1: OCR 엔진 호출")
         raw_results = self.calling_apis()
+        if not self.ensemble:
+            print("▶ 단일 엔진 결과만 출력 (앙상블 없음)")
+            print(raw_results)
 
         print("▶ 단계 2: WBF로 BBox 병합")
         merged_bboxes = self.apply_wbf(raw_results)
 
         print("▶ 단계 3: 텍스트 앙상블")
         final_results = self.ensemble_text(merged_bboxes, raw_results)
-
-        print("▶ 단계 4: 결과 출력")
-        self.save_or_return_results(final_results, save=False)
+        print(final_results)
 
 def main():
     """
     OCR 파이프라인 예제 실행 함수.
     """
     
+    # 1. 이미지 경로 처리 -----------------
+    img_path = "../sample_docs/dummy_1.png"
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    path = "../sample_docs/dummy_1.png"
-    path = os.path.join(current_dir, path)
+    path = os.path.join(current_dir, img_path)
     
-    ocrs = [EasyOCR, PaddleOCRWrapper, DocTROCR]
-    ocr_instances = [ocr(path) for ocr in ocrs]
-    pipeline = OCR(path, ocr_instances)
+    # 2. 설정 ----------------------------
+    use_google = False  # Google OCR 사용할지 여부
+    ensemble = True    # 앙상블할지 여부
+    
+    # 3. 사용할 OCR 엔진 설정 --------------
+    ocrs = [
+    EasyOCR(path),
+    PaddleOCRWrapper(path),
+    DocTROCR(path)
+    ]
+    if use_google:
+        ocrs.append(GoogleOCR(path, GOOGLE_OCR_API_KEY))  # GoogleOCR은 callable로 래핑
+    
+    
+    # 4. OCR 파이프라인 실행 --------------
+    pipeline = OCR(path, ocrs, ensemble)
     pipeline()
 
 if __name__ == "__main__":
