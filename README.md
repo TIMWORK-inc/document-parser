@@ -22,8 +22,8 @@ AI 기반 문서 분석 시스템 – 다양한 형태의 문서(PDF, 이미지 
 | 영역         |기술                                                                 |
 |--------------|----------------------------------------------------------------------|
 | 언어         | Python 3.8+                                                           |
-| OCR         |          |
-| Layout 분석  |        |
+| OCR          | doctr, google_ocr, easy_ocr, paddle_ocr         |
+| Layout 분석  | docbank, layoutparser, pdfplumber, publaynet      |
 | 이미지 처리   |                                                |
 | 테이블 구조화 |                              |
 | 시각화       |                               |
@@ -31,17 +31,16 @@ AI 기반 문서 분석 시스템 – 다양한 형태의 문서(PDF, 이미지 
 ## 📂 프로젝트 구조
 
 document-parser/
-├── document_parser/         # 모든 실행 로직 모듈을 이곳으로 통합
-├── results/                 # 추출 결과 저장
-├── web/                     # 웹 관련 코드
-├── rxconfig.py              # API 키, 설정값 불러오기
-├── run.py                   # 진입점: 전체 파서 실행 코드
-├── sample_docs/             # 테스트용 문서 저장
-├── .env                     # 환경변수 저장
-├── .gitignore
-├── LICENSE
-├── README.md
-└── requirements.txt
+├── Layout_Parser/          # 문서 레이아웃 분석 모듈
+├── OCR/                    # OCR 처리 모듈
+├── document_parser/        # 실행 및 통합 로직 (메인 파서)
+├── logger/                 # 로그 처리 및 디버깅 도구
+├── results/                # 추출 결과 저장 디렉토리
+├── sample_docs/            # 테스트용 샘플 문서
+├── table/                  # 테이블 구조 분석 모듈
+├── web/                    # 웹 UI 및 API 서버
+├── .gitignore              # Git 무시 설정
+├── LICENSE                 # 라이선스 파일
 
 
 ## API
