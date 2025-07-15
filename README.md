@@ -28,8 +28,9 @@ AI 기반 문서 분석 시스템 – 다양한 형태의 문서(PDF, 이미지 
 | 테이블 구조화 |                              |
 | 시각화       |                               |
 
-## 📂 프로젝트 구조
+## 📁 프로젝트 구조
 
+```
 document-parser/
 ├── Layout_Parser/       # 문서 레이아웃 분석 모듈
 ├── OCR/                 # OCR 처리 모듈
@@ -41,6 +42,8 @@ document-parser/
 ├── web/                 # 웹 UI 및 API 서버
 ├── .gitignore           # Git 무시 설정
 └── LICENSE              # 라이선스 파일
+```
+
 
 
 
