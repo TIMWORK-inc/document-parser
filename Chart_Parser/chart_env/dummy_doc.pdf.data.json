@@ -1,0 +1,44 @@
+{
+  "data": [
+    {
+      "Brand": "BYD",
+      "Market": 28
+    },
+    {
+      "Brand": "Tesla",
+      "Market": 21
+    },
+    {
+      "Brand": "Volkswagen",
+      "Market": 15
+    },
+    {
+      "Brand": "BMW",
+      "Market": 12
+    },
+    {
+      "Brand": "Hyundai",
+      "Market": 10
+    },
+    {
+      "Brand": "Others",
+      "Market": 14
+    }
+
+  ],
+  "columns": [
+    {
+      "name": "Brand",
+      "description": "Brand",
+      "data_type": "categorical",
+      "unit": ""
+    },
+    {
+      "name": "Market",
+      "description": "Market",
+      "data_type": "numerical",
+      "unit": "B"
+    }
+  ],
+  "type_combination": "categorical + numerical"
+}

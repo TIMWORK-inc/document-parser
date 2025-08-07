@@ -8,7 +8,7 @@ from config.config import Config
 from utils.data_schema import BaseDetectionResult
 
 # 새 Logger 시스템 import
-from Logger import LayoutDetectionLogger
+from logger.module_loggers import LayoutDetectionLogger
 
 class PdfPlumberAdapter:
     def __init__(self):
@@ -61,3 +61,5 @@ class PdfPlumberAdapter:
         with open(self.output_json, "w", encoding="utf-8") as f:
             json.dump([r.to_dict() for r in results], f, indent=2, ensure_ascii=False)
         LayoutDetectionLogger.info(f"전체 결과가 {self.output_json}에 저장되었습니다.")
+
+Adapter = PdfPlumberAdapter

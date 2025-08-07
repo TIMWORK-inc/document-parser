@@ -1,7 +1,8 @@
 import json
+import argparse
 from pathlib import Path
-from openai import OpenAI
 from typing import Dict
+import openai
 
 def load_chart_data(chart_id: str, charts_dir: Path):
     with open(charts_dir / f"{chart_id}.data.json", "r", encoding="utf-8") as f:
@@ -12,77 +13,85 @@ def load_chart_data(chart_id: str, charts_dir: Path):
 
 def load_llm_a_outputs(chart_id: str, outputs_dir: Path) -> Dict[str, str]:
     path = outputs_dir / f"{chart_id}.json"
+    if not path.exists():
+        raise FileNotFoundError(f"❌ LLM A 결과 파일이 존재하지 않습니다: {path}")
+    
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    if "results" not in data:
-        raise ValueError(f"'results' 키가 없습니다: {chart_id}")
-    return data["results"]
+
+    results = data.get("results", {})
+
+    # 리스트로 되어 있으면 딕셔너리로 변환
+    if isinstance(results, list):
+        print("📌 'results'는 리스트 형식입니다. 딕셔너리로 변환 중...")
+        results = {
+            item["prompt_type"]: item["result"]
+            for item in results
+            if "prompt_type" in item and "result" in item
+        }
+
+    if not results:
+        print("⚠️ 'results'가 비어 있습니다. LLM A 결과가 없거나 구조가 잘못됐을 수 있습니다.")
+    else:
+        print(f"📄 LLM A 결과 로딩 완료. 프롬프트 유형: {list(results.keys())}")
+
+    return results
 
 def build_llm_b_prompt(chart_data, chart_info, prompt_type: str, llm_a_output: str) -> str:
     return f"""
-당신은 차트 생성기에서 사용된 데이터와 정보를 보고, 차트를 분석한 결과가 올바른지 판단하는 전문가입니다.
+당신은 차트를 생성하는 데 사용된 데이터와 차트 메타 정보를 기반으로,
+다음 해석이 정확한지 검증하는 역할을 맡았습니다.
 
-[Prompt Type: {prompt_type}]
+[차트 생성 데이터]
+{json.dumps(chart_data, ensure_ascii=False, indent=2)}
 
-다음은 차트를 구성한 데이터 및 메타정보입니다:
-[CHART DATA]
-{json.dumps(chart_data, ensure_ascii=False)}
+[차트 메타 정보]
+{json.dumps(chart_info, ensure_ascii=False, indent=2)}
 
-[CHART INFO]
-{json.dumps(chart_info, ensure_ascii=False)}
+[LLM A의 차트 해석 결과]
+{llm_a_output}
 
-다음은 이 차트에 대해 LLM A가 생성한 응답입니다:
-[LLM A OUTPUT]
-"{llm_a_output}"
-
-질문: LLM A의 응답은 주어진 chart_data 및 chart_info를 기반으로 할 때 정확합니까?
-- 정확하면 "Yes"라고 답하고,
-- 부정확하면 "No"라고 답하며 그 이유를 간단히 써주세요.
+[검증 기준: {prompt_type}]
+위 내용을 바탕으로 해석 결과가 정확한지 평가해주세요.
+가능하다면 '정확함', '부분적으로 정확함', '부정확함' 중 하나로 판단하고 간단한 근거를 제시해주세요.
 """
 
-def run_llm_b(prompt: str) -> str:
-    client = OpenAI(    api_key = "sk-...")
+def evaluate_with_llm_b(prompt: str, api_key: str) -> str:
+    client = openai.OpenAI(api_key=api_key)
+    messages = [{"role": "user", "content": prompt}]
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "당신은 차트 평가 전문가입니다."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0
+        messages=messages
     )
-    return response.choices[0].message.content.strip()
-
-def main():
-    charts_dir = Path("/home/sdj/ChartGalaxy_test/charts")
-    outputs_dir = Path("/home/sdj/ChartGalaxy_test/outputs")
-    save_dir = Path("/home/sdj/ChartGalaxy_test/judged_outputs")
-    save_dir.mkdir(exist_ok=True)
-
-    for file in outputs_dir.glob("*.json"):
-        chart_id = file.stem
-        try:
-            chart_data, chart_info = load_chart_data(chart_id, charts_dir)
-            llm_a_outputs = load_llm_a_outputs(chart_id, outputs_dir)
-
-            judged_result = {}
-            for prompt_type, llm_a_output in llm_a_outputs.items():
-                prompt = build_llm_b_prompt(chart_data, chart_info, prompt_type, llm_a_output)
-                judgment = run_llm_b(prompt)
-                judged_result[prompt_type] = {
-                    "llm_a_output": llm_a_output,
-                    "llm_b_judgment": judgment
-                }
-
-            # Save the judged result per chart
-            with open(save_dir / f"{chart_id}.judged.json", "w", encoding="utf-8") as f:
-                json.dump({
-                    "chart_id": chart_id,
-                    "judged_results": judged_result
-                }, f, ensure_ascii=False, indent=2)
-
-            print(f"{chart_id} 평가 완료")
-        except Exception as e:
-            print(f"{chart_id} 실패: {e}")
+    return response.choices[0].message.content
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="LLM B 평가 시스템")
+    parser.add_argument("--chart_id", type=str, required=True, help="차트 ID (예: PMC123456)")
+    parser.add_argument("--charts_dir", type=Path, required=True, help=".data.json, .info.json이 저장된 디렉토리")
+    parser.add_argument("--outputs_dir", type=Path, required=True, help="LLM A 결과가 저장된 디렉토리")
+    parser.add_argument("--prompt_type", type=str, default=None, help="프롬프트 유형 필터 (예: chart_analysis)")
+    parser.add_argument("--api_key", type=str, required=True, help="OpenAI API 키")
+    args = parser.parse_args()
+
+    print(f"🔍 차트 ID: {args.chart_id}")
+    print(f"📁 charts_dir: {args.charts_dir}")
+    print(f"📁 outputs_dir: {args.outputs_dir}")
+    print(f"🔎 평가 대상 prompt_type: {args.prompt_type or '모두'}")
+
+    # 데이터 로드
+    chart_data, chart_info = load_chart_data(args.chart_id, args.charts_dir)
+    llm_a_outputs = load_llm_a_outputs(args.chart_id, args.outputs_dir)
+
+    if not llm_a_outputs:
+        print("⚠️ 평가할 LLM A 결과가 없습니다. 스크립트를 종료합니다.")
+        exit(1)
+
+    # 평가 시작
+    for prompt_type, llm_a_output in llm_a_outputs.items():
+        if args.prompt_type and prompt_type != args.prompt_type:
+            continue
+        print(f"\n🧪 [{prompt_type}] 항목 평가 중...")
+        prompt = build_llm_b_prompt(chart_data, chart_info, prompt_type, llm_a_output)
+        result = evaluate_with_llm_b(prompt, args.api_key)
+        print(f"✅ 평가 결과:\n{result}")
