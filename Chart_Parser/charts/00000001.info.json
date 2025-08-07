@@ -1,0 +1,8 @@
+{
+  "chart_variation": "multiple_vertical_bar_chart_02",
+  "image_mode": "side",
+  "background_color": "#203a43",
+  "data_source": "enh_cnn_5287.json",
+  "chart_type": "Multiple Vertical Bar Chart",
+  "layout_template": "TL_C"
+}

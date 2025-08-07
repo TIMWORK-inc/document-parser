@@ -1,0 +1,6 @@
+이 차트를 보고 도출할 수 있는 인사이트나 제안을 해줘.
+
+📊 실제 데이터:
+- 차트 유형: Vertical Bar Chart With Circle
+- X축 (Artist): ['Queen Bee', 'Cardi B', 'J. Jackson', 'Lady G.G.', 'Shady Slim', 'J. Timberlake', 'Peter Gabriel', 'Aerosmith', 'Madonna', 'R.E.M.', 'Fatboy S.', 'The Green Day']
+- Y축 (Awards Won): [35.0, 15.0, 70.0, 2.0, 5.0, 30.0, 20.0, 14.0, 2.0, 25.0, 7.0, 0.0] (단위: none)

@@ -1,0 +1,8 @@
+{
+  "chart_variation": "horizontal_bar_chart_15_hand",
+  "image_mode": "side",
+  "background_color": "#E2F1F6",
+  "data_source": "aug_cnn_2721.json",
+  "chart_type": "Horizontal Bar Chart With Circle",
+  "layout_template": "TR_BR"
+}

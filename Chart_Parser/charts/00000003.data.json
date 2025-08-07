@@ -1,0 +1,79 @@
+{
+    "data": [
+        {
+            "Country": "Republic of Korea",
+            "Trust in business": 24.0,
+            "GDP_per_capita": 51875.2
+        },
+        {
+            "Country": "Japan",
+            "Trust in business": 145.6,
+            "GDP_per_capita": 23988.0
+        },
+        {
+            "Country": "UK",
+            "Trust in business": 72.0,
+            "GDP_per_capita": 74400.0
+        },
+        {
+            "Country": "Germany",
+            "Trust in business": 44.8,
+            "GDP_per_capita": 81280.0
+        },
+        {
+            "Country": "France",
+            "Trust in business": 102.4,
+            "GDP_per_capita": 26100.0
+        },
+        {
+            "Country": "USA",
+            "Trust in business": 84.48,
+            "GDP_per_capita": 45839.4
+        },
+        {
+            "Country": "Canada",
+            "Trust in business": 89.6,
+            "GDP_per_capita": 84464.0
+        },
+        {
+            "Country": "South Africa",
+            "Trust in business": 22.8,
+            "GDP_per_capita": 11152.0
+        },
+        {
+            "Country": "Republic of India",
+            "Trust in business": 43.2,
+            "GDP_per_capita": 1434.0
+        },
+        {
+            "Country": "People's Republic of China",
+            "Trust in business": 105.6,
+            "GDP_per_capita": 20352.0
+        }
+    ],
+    "columns": [
+        {
+            "name": "Country",
+            "importance": "primary",
+            "description": "Selected countries",
+            "unit": "none",
+            "data_type": "categorical",
+            "role": "x"
+        },
+        {
+            "name": "Trust in business",
+            "importance": "primary",
+            "description": "Percentage of respondents who trust in business (60-100 = Trust, 50-59 = Neutral, 1-49 = Distrust)",
+            "unit": "percent",
+            "data_type": "numerical",
+            "role": "y"
+        },
+        {
+            "name": "GDP_per_capita",
+            "data_type": "numerical",
+            "role": "y2",
+            "description": "Gross Domestic Product per capita (in current USD) for each country, representing the average economic output per person."
+        }
+    ],
+    "type_combination": "categorical + numerical + numerical"
+}

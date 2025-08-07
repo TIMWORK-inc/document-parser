@@ -1,0 +1,69 @@
+{
+    "data": [
+        {
+            "Artist": "Beasties",
+            "Certified Album Sales": 4.1,
+            "Grammy Nominations": 7.0
+        },
+        {
+            "Artist": "OutKast",
+            "Certified Album Sales": 15.4,
+            "Grammy Nominations": 20.0
+        },
+        {
+            "Artist": "Drizzy",
+            "Certified Album Sales": 7.3,
+            "Grammy Nominations": 55.0
+        },
+        {
+            "Artist": "Nelly",
+            "Certified Album Sales": 23.5,
+            "Grammy Nominations": 12.0
+        },
+        {
+            "Artist": "Ye",
+            "Certified Album Sales": 12.4,
+            "Grammy Nominations": 75.0
+        },
+        {
+            "Artist": "2Pac",
+            "Certified Album Sales": 37.4,
+            "Grammy Nominations": 7.0
+        },
+        {
+            "Artist": "Jay-Z",
+            "Certified Album Sales": 18.5,
+            "Grammy Nominations": 88.0
+        },
+        {
+            "Artist": "Eminem",
+            "Certified Album Sales": 70.9,
+            "Grammy Nominations": 47.0
+        }
+    ],
+    "columns": [
+        {
+            "name": "Artist",
+            "importance": "primary",
+            "description": "Name of the rap artist",
+            "unit": "none",
+            "data_type": "categorical",
+            "role": "x"
+        },
+        {
+            "name": "Certified Album Sales",
+            "importance": "primary",
+            "description": "Number of certified album sales in millions",
+            "unit": "Million",
+            "data_type": "numerical",
+            "role": "y"
+        },
+        {
+            "name": "Grammy Nominations",
+            "data_type": "numerical",
+            "role": "y2",
+            "description": "The total number of Grammy nominations received by each artist."
+        }
+    ],
+    "type_combination": "categorical + numerical + numerical"
+}

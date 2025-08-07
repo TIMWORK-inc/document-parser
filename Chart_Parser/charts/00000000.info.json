@@ -1,0 +1,8 @@
+{
+    "chart_variation": "vertical_bar_chart_example_02",
+    "image_mode": "side",
+    "background_color": "#f4f4f4",
+    "data_source": "data.json",
+    "chart_type": "Vertical Bar Chart",
+    "layout_template": "TL_TR"
+  }

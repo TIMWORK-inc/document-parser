@@ -1,0 +1,89 @@
+{
+    "data": [
+        {
+            "Artist": "Queen Bee",
+            "Awards Won": 35.0,
+            "Spotify Monthly Listeners (Millions)": 145.0
+        },
+        {
+            "Artist": "Cardi B",
+            "Awards Won": 15.0,
+            "Spotify Monthly Listeners (Millions)": 110.0
+        },
+        {
+            "Artist": "J. Jackson",
+            "Awards Won": 70.0,
+            "Spotify Monthly Listeners (Millions)": 10.0
+        },
+        {
+            "Artist": "Lady G.G.",
+            "Awards Won": 2.0,
+            "Spotify Monthly Listeners (Millions)": 98.0
+        },
+        {
+            "Artist": "Shady Slim",
+            "Awards Won": 5.0,
+            "Spotify Monthly Listeners (Millions)": 45.0
+        },
+        {
+            "Artist": "J. Timberlake",
+            "Awards Won": 30.0,
+            "Spotify Monthly Listeners (Millions)": 35.0
+        },
+        {
+            "Artist": "Peter Gabriel",
+            "Awards Won": 20.0,
+            "Spotify Monthly Listeners (Millions)": 55.0
+        },
+        {
+            "Artist": "Aerosmith",
+            "Awards Won": 14.0,
+            "Spotify Monthly Listeners (Millions)": 5.0
+        },
+        {
+            "Artist": "Madonna",
+            "Awards Won": 2.0,
+            "Spotify Monthly Listeners (Millions)": 60.0
+        },
+        {
+            "Artist": "R.E.M.",
+            "Awards Won": 25.0,
+            "Spotify Monthly Listeners (Millions)": 6.0
+        },
+        {
+            "Artist": "Fatboy S.",
+            "Awards Won": 7.0,
+            "Spotify Monthly Listeners (Millions)": 15.0
+        },
+        {
+            "Artist": "The Green Day",
+            "Awards Won": 0.0,
+            "Spotify Monthly Listeners (Millions)": 12.0
+        }
+    ],
+    "columns": [
+        {
+            "name": "Artist",
+            "importance": "primary",
+            "description": "Name of the recording artist",
+            "unit": "none",
+            "data_type": "categorical",
+            "role": "x"
+        },
+        {
+            "name": "Awards Won",
+            "importance": "primary",
+            "description": "Total number of MTV VMA awards won by the artist, including awards with Destiny's Child",
+            "unit": "none",
+            "data_type": "numerical",
+            "role": "y"
+        },
+        {
+            "name": "Spotify Monthly Listeners (Millions)",
+            "data_type": "numerical",
+            "role": "y2",
+            "description": "The approximate number of monthly listeners each artist has on Spotify, measured in millions."
+        }
+    ],
+    "type_combination": "categorical + numerical + numerical"
+}

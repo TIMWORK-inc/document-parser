@@ -1,0 +1,6 @@
+이 차트에서 관찰할 수 있는 추세나 경향을 설명해줘.
+
+📊 실제 데이터:
+- 차트 유형: Horizontal Bar Chart With Circle
+- X축 (Country): ['Republic of Korea', 'Japan', 'UK', 'Germany', 'France', 'USA', 'Canada', 'South Africa', 'Republic of India', "People's Republic of China"]
+- Y축 (Trust in business): [24.0, 145.6, 72.0, 44.8, 102.4, 84.48, 89.6, 22.8, 43.2, 105.6] (단위: percent)

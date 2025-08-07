@@ -1,0 +1,6 @@
+이 차트에서 가장 높은 값을 가진 항목을 알려줘.
+
+📊 실제 데이터:
+- 차트 유형: Multiple Vertical Bar Chart
+- X축 (Artist): ['Beasties', 'OutKast', 'Drizzy', 'Nelly', 'Ye', '2Pac', 'Jay-Z', 'Eminem']
+- Y축 (Certified Album Sales): [4.1, 15.4, 7.3, 23.5, 12.4, 37.4, 18.5, 70.9] (단위: Million)

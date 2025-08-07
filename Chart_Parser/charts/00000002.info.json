@@ -1,0 +1,8 @@
+{
+  "chart_variation": "vertical_bar_chart_02",
+  "image_mode": "side",
+  "background_color": "#F2EDEE",
+  "data_source": "aug_cnn_1269.json",
+  "chart_type": "Vertical Bar Chart With Circle",
+  "layout_template": "R_T"
+}

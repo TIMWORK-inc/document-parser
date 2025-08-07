@@ -1,0 +1,6 @@
+이 차트를 한 문장으로 요약해줘.
+
+📊 실제 데이터:
+- 차트 유형: Vertical Bar Chart
+- X축 (Brand): ['BYD', 'Tesla', 'Volkswagen', 'BMW', 'Hyundai', 'Others']
+- Y축 (Market): [28, 21, 15, 12, 10, 14] (단위: B)
