@@ -16,19 +16,23 @@ __all__ = [
 
 printer = lambda device, output: f"[GPU {device}] " + output
 
+# html_table_template = (
+#     lambda table: f"""<html>
+#         <head> <meta charset="UTF-8">
+#         <style>
+#         table, th, td {{
+#             border: 1px solid black;
+#             font-size: 10px;
+#         }}
+#         </style> </head>
+#         <body>
+#         <table frame="hsides" rules="groups" width="100%%">
+#             {table}
+#         </table> </body> </html>"""
+# )
+
 html_table_template = (
-    lambda table: f"""<html>
-        <head> <meta charset="UTF-8">
-        <style>
-        table, th, td {{
-            border: 1px solid black;
-            font-size: 10px;
-        }}
-        </style> </head>
-        <body>
-        <table frame="hsides" rules="groups" width="100%%">
-            {table}
-        </table> </body> </html>"""
+    lambda table: f'<table frame="hsides" rules="groups" width="100%%">{table}</table>'
 )
 
 

@@ -154,8 +154,6 @@ def build_table_from_html_and_cell(
     assert structure is not None
     html_code = list()
 
-    print(content)
-
     # deal with empty table
     if content is None:
         content = ["placeholder"] * len(structure)
